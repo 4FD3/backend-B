@@ -113,7 +113,7 @@ app.post('/api/auth/google', async (req, res) => {
     let user = await User.findOne({ email: payload.email });
     if (!user) {
       user = await User.create({
-        id: payload.sub,
+        googleId: payload.sub,
         email: payload.email,
         avatar: payload.picture,
         createdAt: new Date()

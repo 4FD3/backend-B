@@ -26,7 +26,6 @@ const receiptSchema = new mongoose.Schema({
 });
 
 const userSchema = new mongoose.Schema({
-  _id: { type: String, required: true },
   googleId: String,
   email: String,
   avatar: String,

@@ -220,6 +220,24 @@ router.post('/radar_data', async (req, res) => {
   }
 });
 
+router.delete('/receipts/:receiptId', async (req, res) => {
+  const { receiptId } = req.params;
+
+  try {    
+    const result = await Receipt.findByIdAndDelete(receiptId);
+
+    if (result) {
+      res.status(200).json({ message: 'Receipt deleted successfully', deletedReceiptId: receiptId });
+    } else {      
+      res.status(404).json({ message: 'Receipt not found' });
+    }
+  } catch (error) {
+    console.error('Error deleting receipt:', error);
+    res.status(500).json({ message: 'Error deleting receipt', error: error.toString() });
+  }
+});
+
+
 router.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] }));
 

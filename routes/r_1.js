@@ -127,9 +127,25 @@ router.post('/consumption_by_year', async (req, res) => {
     if (!Array.isArray(years)) {
       return res.status(400).send('Years is not an array');
     }
+  } else {
+    return res.status(400).send('Request body is missing');
   }
   const monthlyTotals = {};
   const userId = req.user._id;
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+
+  years.forEach(year => {
+    months.forEach(month => {
+      if (!monthlyTotals[month]) {
+        monthlyTotals[month] = {};
+      }
+      monthlyTotals[month][`year_${year}`] = 0;
+    });
+  });
+
   try {
     for (const year of years) {
       const startDate = new Date(`${year}-01-01T00:00:00.000Z`);
@@ -140,10 +156,11 @@ router.post('/consumption_by_year', async (req, res) => {
         createdAt: { $gte: startDate, $lte: endDate }
       });
       receipts.forEach(receipt => {
-        const month = receipt.createdAt.getMonth();
+        // const month = receipt.createdAt.getMonth();
         const monthName = new Date(receipt.createdAt).toLocaleString('default', { month: 'long' });
-        monthlyTotals[monthName] = monthlyTotals[monthName] || {};
-        monthlyTotals[monthName][`year_${year}`] = (monthlyTotals[monthName][`year_${year}`] || 0) + receipt.total.reduce((acc, curr) => acc + curr.price, 0);
+        // monthlyTotals[monthName] = monthlyTotals[monthName] || {};
+        // monthlyTotals[monthName][`year_${year}`] = (monthlyTotals[monthName][`year_${year}`] || 0) + receipt.total.reduce((acc, curr) => acc + curr.price, 0);
+        monthlyTotals[monthName][`year_${year}`] += receipt.total.reduce((acc, curr) => acc + curr.price, 0);
       });
     }
     const responseData = Object.keys(monthlyTotals).map(month => ({
@@ -164,8 +181,12 @@ router.post('/radar_data', async (req, res) => {
     if (!Array.isArray(years)) {
       return res.status(400).send('Years is not an array');
     }
+  } else {
+    return res.status(400).send('Request body is missing');
   }
   const userId = req.user._id;
+  const categories = ["grocery", "electronics", "home", "apparel", "health", "others"];
+
   try {
     const categorySums = await Receipt.aggregate([
       { $match: { "userId": userId } },
@@ -198,18 +219,29 @@ router.post('/radar_data', async (req, res) => {
         }
       }
     ]);
-    let fullMark = 0;
-    const dataR = categorySums.map(cat => {
-      const categoryData = { subject: cat._id };
+    // let fullMark = 0;
+    // const dataR = categorySums.map(cat => {
+    //   const categoryData = { subject: cat._id };
 
-      cat.data.forEach(d => {
-        categoryData[`year_${d.year}`] = d.amount;
-        fullMark = Math.max(fullMark, d.amount);
+    //   cat.data.forEach(d => {
+    //     categoryData[`year_${d.year}`] = d.amount;
+    //     fullMark = Math.max(fullMark, d.amount);
+    //   });
+
+    //   return categoryData;
+    const dataR = categories.map(cat => {
+      const categoryData = { subject: cat };
+      years.forEach(year => {
+        const yearData = categorySums.find(c => c._id === cat)?.data.find(d => d.year === year);
+        categoryData[`year_${year}`] = yearData ? yearData.amount : 0;
       });
-
       return categoryData;
     });
 
+    let fullMark = dataR.reduce((acc, cat) => {
+      const maxInCat = Math.max(...years.map(year => cat[`year_${year}`]));
+      return Math.max(acc, maxInCat);
+    }, 0);
 
     dataR.forEach(catData => catData.fullMark = fullMark);
 
@@ -220,15 +252,25 @@ router.post('/radar_data', async (req, res) => {
   }
 });
 
+
+// dataR.forEach(catData => catData.fullMark = fullMark);
+
+// res.json(dataR);
+//   } catch (error) {
+//   console.error(error);
+//   res.status(500).send('Internal Server Error');
+// }
+// });
+
 router.delete('/receipts/:receiptId', async (req, res) => {
   const { receiptId } = req.params;
 
-  try {    
+  try {
     const result = await Receipt.findByIdAndDelete(receiptId);
 
     if (result) {
       res.status(200).json({ message: 'Receipt deleted successfully', deletedReceiptId: receiptId });
-    } else {      
+    } else {
       res.status(404).json({ message: 'Receipt not found' });
     }
   } catch (error) {

@@ -150,6 +150,7 @@ app.post('/api/receipts/upload', authMiddleware, upload.single('file'), async (r
     return res.status(400).send('No file uploaded.');
   }
   (async () => {
+    try{
     const worker = await createWorker('eng');
     const { data: { text } } = await worker.recognize(req.file.buffer);
     console.log(text);
@@ -204,6 +205,11 @@ app.post('/api/receipts/upload', authMiddleware, upload.single('file'), async (r
 
     console.log("----- ", receiptData);
     return res.status(200).send(receiptData);
+
+  }catch(error) {
+    console.error('Error during OCR processing:', error);      
+    res.status(500).json({ message: 'Error processing your image', error: error.toString() });
+  }
   })();
 
 });
